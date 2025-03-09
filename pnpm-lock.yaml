@@ -68,6 +68,9 @@ importers:
       vue-router:
         specifier: ^4.5.0
         version: 4.5.0(vue@3.5.13)
+      workbox-window:
+        specifier: 6.5.4
+        version: 6.5.4
     devDependencies:
       '@cypress/code-coverage':
         specifier: ^3.13.11
@@ -110,7 +113,7 @@ importers:
         version: 1.17.7(vite@4.5.9(@types/node@22.13.10)(sass@1.85.1)(terser@5.39.0))
       vite-plugin-pwa:
         specifier: ^0.14.7
-        version: 0.14.7(vite@4.5.9(@types/node@22.13.10)(sass@1.85.1)(terser@5.39.0))(workbox-build@6.6.0)(workbox-window@6.6.0)
+        version: 0.14.7(vite@4.5.9(@types/node@22.13.10)(sass@1.85.1)(terser@5.39.0))(workbox-build@6.6.0)(workbox-window@6.5.4)
 
 packages:
 
@@ -3660,6 +3663,9 @@ packages:
     resolution: {integrity: sha512-JfhJUSQDwsF1Xv3EV1vWzSsCOZn4mQ38bWEBR3LdvOxSPgB65gAM6cS2CX8rkkKHRgiLrN7Wxoyu+TuH67kHrw==}
     deprecated: workbox-background-sync@6.6.0
 
+  workbox-core@6.5.4:
+    resolution: {integrity: sha512-OXYb+m9wZm8GrORlV2vBbE5EC1FKu71GGp0H4rjmxmF4/HLbMCoTFws87M3dFwgpmg0v00K++PImpNQ6J5NQ6Q==}
+
   workbox-core@6.6.0:
     resolution: {integrity: sha512-GDtFRF7Yg3DD859PMbPAYPeJyg5gJYXuBQAC+wyrWuuXgpfoOrIQIvFRZnQ7+czTIQjIr1DhLEGFzZanAT/3bQ==}
 
@@ -3693,6 +3699,9 @@ packages:
 
   workbox-sw@6.6.0:
     resolution: {integrity: sha512-R2IkwDokbtHUE4Kus8pKO5+VkPHD2oqTgl+XJwh4zbF1HyjAbgNmK/FneZHVU7p03XUt9ICfuGDYISWG9qV/CQ==}
+
+  workbox-window@6.5.4:
+    resolution: {integrity: sha512-HnLZJDwYBE+hpG25AQBO8RUWBJRaCsI9ksQJEp3aCOFCaG5kqaToAYXFRAHxzRluM2cQbGzdQF5rjKPWPA1fug==}
 
   workbox-window@6.6.0:
     resolution: {integrity: sha512-L4N9+vka17d16geaJXXRjENLFldvkWy7JyGxElRD0JvBxvFEd8LOhr+uXCcar/NzAmIBRv9EZ+M+Qr4mOoBITw==}
@@ -7622,7 +7631,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  vite-plugin-pwa@0.14.7(vite@4.5.9(@types/node@22.13.10)(sass@1.85.1)(terser@5.39.0))(workbox-build@6.6.0)(workbox-window@6.6.0):
+  vite-plugin-pwa@0.14.7(vite@4.5.9(@types/node@22.13.10)(sass@1.85.1)(terser@5.39.0))(workbox-build@6.6.0)(workbox-window@6.5.4):
     dependencies:
       '@rollup/plugin-replace': 5.0.7(rollup@3.29.5)
       debug: 4.4.0(supports-color@8.1.1)
@@ -7631,7 +7640,7 @@ snapshots:
       rollup: 3.29.5
       vite: 4.5.9(@types/node@22.13.10)(sass@1.85.1)(terser@5.39.0)
       workbox-build: 6.6.0
-      workbox-window: 6.6.0
+      workbox-window: 6.5.4
     transitivePeerDependencies:
       - supports-color
 
@@ -7837,6 +7846,8 @@ snapshots:
     dependencies:
       workbox-core: 6.6.0
 
+  workbox-core@6.5.4: {}
+
   workbox-core@6.6.0: {}
 
   workbox-expiration@6.6.0:
@@ -7888,6 +7899,11 @@ snapshots:
       workbox-routing: 6.6.0
 
   workbox-sw@6.6.0: {}
+
+  workbox-window@6.5.4:
+    dependencies:
+      '@types/trusted-types': 2.0.7
+      workbox-core: 6.5.4
 
   workbox-window@6.6.0:
     dependencies:

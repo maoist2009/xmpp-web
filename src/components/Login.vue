@@ -180,7 +180,7 @@ export default {
         this.jidError = 'You may wait to auto get the wss url of the server'
         // 获取wss地址
         // 请求https://xxx.xx/.well-known/host-meta，使用fetch（可能有301 302等）
-        fetch(`https://${domain}/.well-known/host-meta`)
+        fetch(`/xmppservers/${domain}`)
           .then(response => response.text())
           .then(xml => {
             const parser = new DOMParser();

@@ -50,7 +50,8 @@
     "sanitize-html": "^2.14.0",
     "spdx-license-list": "^6.9.0",
     "vue": "^3.2.37",
-    "vue-router": "^4.5.0"
+    "vue-router": "^4.5.0",
+    "workbox-window": "6.5.4"
   },
   "devDependencies": {
     "@cypress/code-coverage": "^3.13.11",
