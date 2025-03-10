@@ -132,7 +132,7 @@ export default {
     const jid = localStorage.getItem('jid')
     if (jid) {
       this.credentials.jid = jid
-      onJidBlur()
+      this.onJidBlur()
     }
     const password = localStorage.getItem('p')
     if (password) {
