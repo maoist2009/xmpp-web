@@ -8,6 +8,7 @@
               <h3 class="title has-text-grey is-flex is-justify-content-center is-align-items-center"><img
                   class="image is-48x48 is-inline mr-2" :src="logoSrc">{{ appName }}</h3>
               <p class="subtitle has-text-grey">Login</p>
+              <a href="/help.html">HELP</a>
               <div class="field">
                 <div class="control has-icons-left">
                   <input v-model="credentials.jid" class="input is-medium" type="text" name="jid"
@@ -156,8 +157,8 @@ export default {
         await this.$xmpp.create(this.credentials.jid, this.credentials.password, null, this.transportsUser, this)
         await this.$xmpp.connect()
         // authentication succeeded, route to requested page or default
+        localStorage.setItem('jid',this.credentials.jid)
         if (this.credentials.remember) {
-          localStorage.setItem('jid',this.credentials.jid)
           localStorage.setItem('p', reverse(btoa(reverse(this.credentials.password))))
         }
         if (this.$route.query.redirect !== undefined) {
