@@ -156,6 +156,7 @@ export default {
         await this.$xmpp.connect()
         // authentication succeeded, route to requested page or default
         if (this.credentials.remember) {
+          localStorage.setItem('jid',this.credentials.jid)
           localStorage.setItem('p', reverse(btoa(reverse(this.credentials.password))))
         }
         if (this.$route.query.redirect !== undefined) {
