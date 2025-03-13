@@ -123,6 +123,7 @@ export default {
         this.credentials.jid = ssoAuth.headers[window.config.sso.jidHeader]
         this.credentials.password = ssoAuth.headers[window.config.sso.passwordHeader]
         if (this.credentials.jid && this.credentials.password) {
+          this.onJidBlur()
           this.login()
         }
       } catch (error) {
