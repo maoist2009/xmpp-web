@@ -124,6 +124,7 @@ export default {
         this.credentials.password = ssoAuth.headers[window.config.sso.passwordHeader]
         if (this.credentials.jid && this.credentials.password) {
           this.onJidBlur()
+          console.log("SSO: ",this.transportsUser.websocket)
           this.login()
         }
       } catch (error) {
@@ -141,6 +142,7 @@ export default {
       // auto login
       const reverse = (value) => value.split('').reverse().join('')
       this.credentials.password = reverse(atob(reverse(password)))
+      console.log("SSO: ",this.transportsUser.websocket)
       this.login()
     }
   },
