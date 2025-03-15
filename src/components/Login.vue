@@ -124,7 +124,7 @@ export default {
         this.credentials.password = ssoAuth.headers[window.config.sso.passwordHeader]
         if (this.credentials.jid && this.credentials.password) {
           this.onJidBlur()
-          console.log("SSO: ",this.transportsUser.websocket)
+          console.log("SSO: ",this.transportsUser.websocket, this.credentials.jid)
           this.login()
         }
       } catch (error) {
