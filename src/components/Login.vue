@@ -121,10 +121,10 @@ export default {
       try {
         const ssoAuth = await axios.get(window.config.sso.endpoint)
         this.credentials.jid = ssoAuth.headers[window.config.sso.jidHeader]
+        // console.log(this.credentials.jid)
         this.credentials.password = ssoAuth.headers[window.config.sso.passwordHeader]
         if (this.credentials.jid && this.credentials.password) {
-          this.onJidBlur()
-          console.log("SSO: ",this.transportsUser.websocket, this.credentials.jid)
+          await this.onJidBlur()
           this.login()
         }
       } catch (error) {
@@ -135,14 +135,15 @@ export default {
     const jid = localStorage.getItem('jid')
     if (jid) {
       this.credentials.jid = jid
-      this.onJidBlur()
     }
+
     const password = localStorage.getItem('p')
     if (password) {
       // auto login
       const reverse = (value) => value.split('').reverse().join('')
       this.credentials.password = reverse(atob(reverse(password)))
-      console.log("SSO: ",this.transportsUser.websocket)
+      console.log("Lsc: ", this.transportsUser.websocket, this.credentials.jid)
+      await this.onJidBlur()
       this.login()
     }
   },
@@ -160,7 +161,7 @@ export default {
         await this.$xmpp.create(this.credentials.jid, this.credentials.password, null, this.transportsUser, this)
         await this.$xmpp.connect()
         // authentication succeeded, route to requested page or default
-        localStorage.setItem('jid',this.credentials.jid)
+        localStorage.setItem('jid', this.credentials.jid)
         if (this.credentials.remember) {
           localStorage.setItem('p', reverse(btoa(reverse(this.credentials.password))))
         }
@@ -175,9 +176,10 @@ export default {
       // remove loading status
       this.isLoading = false
     },
-    onJidBlur() {
+    async onJidBlur() {
       // 检验用户名是否合法
       const jid = this.credentials.jid.trim()
+      // console.log("onJidBlur: ",jid)
       const domain = jid.split('@')[1]
       if (domain === undefined || domain === '') {
         this.jidError = 'Seems not to be a valid JID'
@@ -186,7 +188,8 @@ export default {
         this.jidError = 'You may wait to auto get the wss url of the server'
         // 获取wss地址
         // 请求https://xxx.xx/.well-known/host-meta，使用fetch（可能有301 302等）
-        fetch(`/xmppservers/${domain}`)
+
+        await fetch(`/xmppservers/${domain}`)
           .then(response => response.text())
           .then(xml => {
             const parser = new DOMParser();
@@ -196,6 +199,7 @@ export default {
               const link = links[i];
               if (link.getAttribute('rel') === 'urn:xmpp:alt-connections:websocket') {
                 this.transportsUser.websocket = link.getAttribute('href');
+                console.log("wss: ", this.transportsUser.websocket)
                 this.jidError = '';
                 break;
               }
