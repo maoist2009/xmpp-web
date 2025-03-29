@@ -206,8 +206,26 @@ export default {
             }
           })
           .catch(error => {
-            console.error('Error getting host-meta', error);
-            this.jidError = 'Failed to get the wss url of the server, you may specify it manually';
+            await fetch(`https://${domain}/.well-known/host-meta`)
+              .then(response => response.text())
+              .then(xml => {
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xml, 'text/xml');
+                const links = xmlDoc.getElementsByTagName('Link');
+                for (let i = 0; i < links.length; i++) {
+                  const link = links[i];
+                  if (link.getAttribute('rel') === 'urn:xmpp:alt-connections:websocket') {
+                    this.transportsUser.websocket = link.getAttribute('href');
+                    console.log("wss: ", this.transportsUser.websocket)
+                    this.jidError = '';
+                    break;
+                  }
+                }
+              })
+              .catch(error => {
+                console.error('Error getting host-meta', error);
+                this.jidError = 'Failed to get the wss url of the server, you may specify it manually';
+              });
           });
 
         // 获取到的xml类似于这样
