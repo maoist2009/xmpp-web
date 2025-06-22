@@ -205,7 +205,7 @@ export default {
               }
             }
           })
-          .catch(error => {
+          .catch(async (error) => {
             await fetch(`https://${domain}/.well-known/host-meta`)
               .then(response => response.text())
               .then(xml => {
