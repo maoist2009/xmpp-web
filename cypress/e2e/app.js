@@ -11,16 +11,20 @@ let jidDomain = 'domain-xmpp.ltd'
 
 let mockServer
 
+const onBeforeLoad = (win) => {
+  // stub websocket requests
+  cy.stub(win, 'WebSocket').callsFake(url => {
+    return new WebSocket(url)
+  }).as('WebSocket')
+}
+
 describe('XMPP Web for registered users', () => {
   before(() => {
     cy.clearAllCookies()
       .clearAllLocalStorage()
       .clearAllSessionStorage()
       .visit('/', {
-        onBeforeLoad: (win) => {
-        // stub websocket requests
-          cy.stub(win, 'WebSocket').callsFake(url => new WebSocket(url))
-        },
+        onBeforeLoad,
         onLoad: (win) => {
         // get config
           url = win.config.transports.websocket
@@ -37,7 +41,10 @@ describe('XMPP Web for registered users', () => {
       cy.get('button[type="submit"]').should('be.disabled')
     })
     it('can login and route to main page', () => {
-      cy.get('input[name="jid"]').type(jidLocal)
+      cy.visit('/', {
+        onBeforeLoad,
+      })
+        .get('input[name="jid"]').type(jidLocal)
         .get('button[type="submit"]').should('be.disabled')
         .get('input[name="password"]').type('pwd')
         .get('button[type="submit"]').should('be.enabled')
@@ -47,23 +54,22 @@ describe('XMPP Web for registered users', () => {
     })
     it('does not store credentials', () => {
       cy.visit('/', {
-        onBeforeLoad: (win) => {
-          cy.stub(win, 'WebSocket').callsFake(url => new WebSocket(url))
-        },
+        onBeforeLoad,
       })
         .hash().should('eq', '#/login?redirect=/')
     })
     it('can login and store credentials', () => {
-      cy.get('input[name="jid"]').clear().type('myuser')
+      cy.visit('/', {
+        onBeforeLoad,
+      })
+        .get('input[name="jid"]').clear().type('myuser')
         .get('input[name="password"]').type('pwd')
         .get('input[type="checkbox"]').check()
         .get('button[type="submit"]').click()
         .hash().should('eq', '#/')
         .get('#navbar-menu', { includeShadowDom: true }).should('contain', `${jidLocal}@${jidDomain}`)
       cy.visit('/', {
-        onBeforeLoad: (win) => {
-          cy.stub(win, 'WebSocket').callsFake(url => new WebSocket(url))
-        },
+        onBeforeLoad,
       })
         .hash().should('eq', '#/')
     })
@@ -126,6 +132,56 @@ describe('XMPP Web for registered users', () => {
     })
   })
 
+  describe('Reactions', function () {
+    before(() => {
+      cy.clearAllCookies()
+        .clearAllLocalStorage()
+        .clearAllSessionStorage()
+        .visit('/', {
+          onBeforeLoad,
+        })
+        .get('input[name="jid"]').clear().type('myuser')
+        .get('input[name="password"]').type('pwd')
+        .get('input[type="checkbox"]').check()
+        .get('button[type="submit"]').click()
+    })
+    it('display reactions', () => {
+      cy.get('#contactsList li').first().click()
+      const msg = 'Hello, can you react?'
+      const id = 'C9Sojvuc_FSF-pTIN4QYz'
+      mockServer.emit('message', `<message type="chat" to="${jidLocal}@${jidDomain}" from="user2@${jidDomain}/dummyClient" id="${id}" xmlns="jabber:client"><body>${msg}</body><active xmlns="http://jabber.org/protocol/chatstates"/><origin-id xmlns="urn:xmpp:sid:0" id="C9Sojvuc_FSF-pTIN4QYz"/></message>`)
+      mockServer.emit('message', `<message type='chat' to='${jidLocal}@${jidDomain}' from="user2@${jidDomain}/dummyClient" id='dd67d774-b472-4f64-91b5-23e728a509b2' xml:lang='en' xmlns='jabber:client'><origin-id id='dd67d774-b472-4f64-91b5-23e728a509b2' xmlns='urn:xmpp:sid:0'/><reactions id='${id}' xmlns='urn:xmpp:reactions:0'><reaction>👍</reaction></reactions><store xmlns='urn:xmpp:hints'/><stanza-id id='019c9a33-3076-7843-bc4e-285b3e602d4d' xmlns='urn:xmpp:sid:0' by='user2@${jidDomain}'/></message>`)
+      cy.get('#messages-container button[data-emoji]').should('contain', '👍')
+    })
+    it('update reactions', () => {
+      const id = 'C9Sojvuc_FSF-pTIN4QYz'
+      mockServer.emit('message', `<message type='chat' to='${jidLocal}@${jidDomain}' from="user2@${jidDomain}/dummyClient" id='dd67d774-b472-4f64-91b5-23e728a509b3' xml:lang='en' xmlns='jabber:client'><origin-id id='dd67d774-b472-4f64-91b5-23e728a509b3' xmlns='urn:xmpp:sid:0'/><reactions id='${id}' xmlns='urn:xmpp:reactions:0'></reactions><store xmlns='urn:xmpp:hints'/><stanza-id id='019c9a33-3076-7843-bc4e-285b3e602d4e' xmlns='urn:xmpp:sid:0' by='user2@${jidDomain}'/></message>`)
+      cy.get('#messages-container').should('not.contain', '👍')
+    })
+    // it('can add reaction', () => {
+    //   cy.get('.messages-container .message-text').trigger('mouseover')
+    //     .get('.messages-container button[title="Add reaction"]').click({ force: true })
+    //     .get('.messages-container .emojiPicker a[title="hundred points"]').click()
+    //     .get('#messages-container button[data-emoji]').should('contain', '💯 1')
+    // })
+    // it('can add reaction only once', () => {
+    //   cy.get('.messages-container .message-text').trigger('mouseover')
+    //     .get('.messages-container .add-reaction').invoke('show')
+    //     .get('.messages-container button[title="Add reaction"]').click({ force: true })
+    //     .get('.messages-container .emojiPicker a[title="hundred points"]').click()
+    //     .get('#messages-container button[data-emoji]').should('contain', '💯 1')
+    // })
+    it('toggle reactions', () => {
+      const id = 'C9Sojvuc_FSF-pTIN4QYz'
+      mockServer.emit('message', `<message type='chat' to='${jidLocal}@${jidDomain}' from="user2@${jidDomain}/dummyClient" id='dd67d774-b472-4f64-91b5-23e728a509b3' xml:lang='en' xmlns='jabber:client'><origin-id id='dd67d774-b472-4f64-91b5-23e728a509b3' xmlns='urn:xmpp:sid:0'/><reactions id='${id}' xmlns='urn:xmpp:reactions:0'><reaction>👍</reaction></reactions><store xmlns='urn:xmpp:hints'/><stanza-id id='019c9a33-3076-7843-bc4e-285b3e602d4e' xmlns='urn:xmpp:sid:0' by='user2@${jidDomain}'/></message>`)
+      cy.get('#messages-container button[data-emoji]').should('contain', '👍 1')
+        .get('.messages-container button[data-emoji="👍"]').click()
+        .get('#messages-container button[data-emoji]').should('contain', '👍 2')
+        .get('.messages-container button[data-emoji="👍"]').click()
+        .get('#messages-container button[data-emoji]').should('contain', '👍 1')
+    })
+  })
+
   describe('Rooms', function () {
     it('displays bookmarked rooms and a link to public rooms', () => {
       cy.get('#roomsList li').should('have.length', 5)
@@ -147,6 +203,15 @@ describe('XMPP Web for registered users', () => {
       const msg = 'Hello room, do you copy?'
       mockServer.emit('message', `<message type="groupchat" to="${jidLocal}@${jidDomain}" from="welcome@conference.${jidDomain}/user2" id="C9Sojvuc" xmlns="jabber:client"><body>${msg}</body><active xmlns="http://jabber.org/protocol/chatstates"/><origin-id xmlns="urn:xmpp:sid:0" id="C9Sojvuc"/><stanza-id by='welcome@conference.${jidDomain}' id='PZBaESdTD4BUkPz2' xmlns='urn:xmpp:sid:0'/></message>`)
       cy.get('#messages-container').should('contain', msg)
+    })
+    it('display and toggle reactions', () => {
+      const id = 'PZBaESdTD4BUkPz2'
+      mockServer.emit('message', `<message type='groupchat' to='${jidLocal}@${jidDomain}' from="welcome@conference.${jidDomain}/user2" id='dd67d774-b472-4f64-91b5-23e728a509b3' xml:lang='en' xmlns='jabber:client'><origin-id id='dd67d774-b472-4f64-91b5-23e728a509b3' xmlns='urn:xmpp:sid:0'/><reactions id='${id}' xmlns='urn:xmpp:reactions:0'><reaction>👍</reaction></reactions><store xmlns='urn:xmpp:hints'/><stanza-id id='019c9a33-3076-7843-bc4e-285b3e602d4e' xmlns='urn:xmpp:sid:0' by='welcome@conference.${jidDomain}'/></message>`)
+      cy.get('#messages-container button[data-emoji]').should('contain', '👍 1')
+      // .get('.messages-container button[data-emoji="👍"]').click()
+      // .get('#messages-container button[data-emoji="👍"]').should('contain', '👍 2')
+      // .get('.messages-container button[data-emoji="👍"]').click()
+      // .get('#messages-container button[data-emoji="👍"]').should('contain', '👍 1')
     })
     it('display unread count on received message on inactive room', () => {
       const msg = 'Hello other room, read this later'
