@@ -1,0 +1,215 @@
+<template>
+  <div class="sendbox has-border-top-shade-3">
+    <form @submit.prevent="sendMessage">
+      <div class="field is-flex is-align-items-center mr-2">
+        <div class="control is-flex-grow-1">
+          <textarea v-model="composingMessage" class="textarea has-background-shade-4 is-shadowless has-placeholder-shade-1" :placeholder rows="2" :disabled="fileThumbnail || fileIcon || !hasVoice" @keydown.ctrl.enter="sendMessage" @keydown.exact.enter="handleEnterKey" @input="onInput" />
+          <div v-if="fileThumbnail || fileIcon" class="thumbnail-container">
+            <img v-if="fileThumbnail" :src="fileThumbnail" class="thumbnail">
+            <i v-if="fileIcon" class="fa-solid fa-2x" :class="fileIcon" />
+            <button class="delete has-background-grey-light" title="Remove file" @click="removeFile" />
+          </div>
+        </div>
+        <div v-if="!hasVoice">
+          <button type="button" class="button is-size-4 is-primary-ghost has-no-border is-shadowless px-3" title="Request voice" @click="requestVoice"><i class="fa-solid fa-hand-point-up fa-fw" aria-hidden="true" /></button>
+        </div>
+        <div v-else class="is-flex">
+          <emoji-picker @emoji-picked="addEmoji" />
+          <button v-if="composingMessage || file || !httpFileUploadMaxSize" type="submit" class="button is-size-4 is-primary-ghost has-no-border is-shadowless px-3" title="Send message"><i class="fa-solid fa-paper-plane fa-fw" aria-hidden="true" /></button>
+          <div v-else class="file has-no-border is-size-4" title="Send a file">
+            <label class="file-label">
+              <input class="file-input" type="file" name="resume" @change="onFileChange">
+              <span class="file-cta is-primary-ghost has-no-border is-size-4 px-3">
+                <span class="file-icon mr-0">
+                  <i class="fa-solid fa-paperclip fa-fw is-primary-ghost is-size-4" />
+                </span>
+              </span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</template>
+
+<script>
+import { mapState } from 'pinia'
+import { useStore } from '@/store'
+import axios from 'axios'
+import { filesize } from 'filesize'
+import EmojiPicker from './EmojiPicker.vue'
+
+export default {
+  name: 'Sendbox',
+  components: {
+    EmojiPicker,
+  },
+  inject: [
+    'isRoom',
+  ],
+  data () {
+    return {
+      composingMessage: '',
+      file: null,
+      fileThumbnail: null,
+      fileIcon: null,
+      chatState: null,
+      pauseTimeoutId: null,
+    }
+  },
+  computed: {
+    userJid () {
+      return this.$xmpp.fullJid
+    },
+    hasVoice () {
+      // if any of these conditions are true, we have voice:
+      // - the active chat is not a room
+      return !this.isRoom ||
+      // - the user does not have the visitor role in this room
+      !this.rolesInRooms
+        .filter((roleInRoom) => roleInRoom.roomId === this.activeChat)
+        .every((roleInRoom) => roleInRoom.role === 'visitor')
+    },
+    placeholder () {
+      if(!this.hasVoice) {
+        return 'This chat is moderated, in order to write messages, you need to request voice first'
+      }
+      if(!this.file) {
+        return 'Send message'
+      }
+      return ''
+    },
+    ...mapState(useStore, [
+      'activeChat',
+      'httpFileUploadMaxSize',
+      'isSendingTypingChatStates',
+      'rolesInRooms',
+      'knownRooms',
+    ]),
+  },
+  methods: {
+    async handleEnterKey (event) {
+      if (window.config.hasSendingEnterKey) {
+        await this.sendMessage()
+        event.preventDefault()
+      }
+    },
+    // send message
+    async sendMessage () {
+      try {
+        if (this.file) {
+          await this.postFile(this.file)
+          return
+        }
+        if (this.composingMessage.trim() === '') {
+          // do not send empty messages
+          return
+        }
+        await this.$xmpp.sendMessage(this.activeChat, this.composingMessage, this.isRoom)
+        this.composingMessage = ''
+      } catch (error) {
+        console.error('send error', error)
+      }
+    },
+    async onInput () {
+      if (!this.isSendingTypingChatStates) {
+        // the user has opted out
+        return
+      }
+      clearTimeout(this.pauseTimeoutId)
+      if (this.composingMessage) {
+        // prepare to go to paused after 15 seconds
+        this.pauseTimeoutId = setTimeout(async () => {
+          if (!this.userJid) {
+            return
+          }
+          this.chatState = 'paused'
+          try {
+            await this.$xmpp.sendChatState(this.activeChat, this.isRoom, this.chatState)
+          } catch (error) {
+            console.warn(`Can not send state chat (${error.message}), are you still connected?`)
+          }
+        }, 15000)
+        if (this.chatState === 'composing') {
+          // do not send composing chat state if already done
+          return
+        }
+        // user has started to typing something
+        this.chatState = 'composing'
+      } else {
+        // user is not typing anything (or clear composing) but is active on chat
+        this.chatState = 'active'
+      }
+      await this.$xmpp.sendChatState(this.activeChat, this.isRoom, this.chatState)
+    },
+    onFileChange (e) {
+      const files = e.target.files || e.dataTransfer.files
+      if (!files.length) {
+        return
+      }
+      this.file = files[0]
+      // check file size
+      if (this.file.size > this.httpFileUploadMaxSize) {
+        alert(`File is too big (${filesize(this.file.size)}, max is ${filesize(this.httpFileUploadMaxSize)})`)
+        return
+      }
+      // handle thumbnail
+      if (this.file.type.startsWith('image/')) {
+        const reader = new FileReader()
+        const vm = this
+        reader.onload = (e) => {
+          vm.fileThumbnail = e.target.result
+        }
+        reader.readAsDataURL(this.file)
+      } else if (this.file.type.startsWith('audio/')) {
+        this.fileIcon = 'fa-file-audio'
+      } else if (this.file.type.startsWith('video/')) {
+        this.fileIcon = 'fa-file-video'
+      } else if (this.file.type === 'text/csv') {
+        this.fileIcon = 'fa-file-csv'
+      } else if (['application/json', 'text/xml'].includes(this.file.type)) {
+        this.fileIcon = 'fa-file-code'
+      } else if (this.file.type.includes('pdf')) {
+        this.fileIcon = 'fa-file-pdf'
+      } else {
+        this.fileIcon = 'fa-file'
+      }
+    },
+    async postFile (file) {
+      try {
+        // reserve slot
+        const httpUploadSlotResult = await this.$xmpp.getUploadSlot(null, {
+          filename: file.name,
+          size: file.size,
+          'content-type': file.type,
+        })
+        // upload file on returned slot
+        await axios.put(httpUploadSlotResult.upload.url, file, {
+          headers: {
+            ...httpUploadSlotResult.upload.auth && { 'Authorization': httpUploadSlotResult.upload.auth },
+            'Content-Type': file.type,
+          },
+        })
+        // upload is ok, send message
+        await this.$xmpp.sendUrl(this.activeChat, httpUploadSlotResult.download, this.isRoom)
+        this.file = null
+        this.fileThumbnail = null
+        this.fileIcon = null
+      } catch (error) {
+        console.error('httpUpload', error)
+      }
+    },
+    removeFile () {
+      this.file = null
+      this.fileThumbnail = null
+      this.fileIcon = null
+    },
+    addEmoji (emoji) {
+      this.composingMessage += emoji
+    },
+    async requestVoice () {
+      await this.$xmpp.requestVoice(this.activeChat)
+    },
+  },
+}
+</script>

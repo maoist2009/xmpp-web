@@ -1,6 +1,6 @@
 {
   "name": "xmpp-web",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "private": true,
   "description": "Lightweight web chat client for XMPP server",
   "homepage": "https://github.com/nioc/xmpp-web",
@@ -23,6 +23,7 @@
     "cy:run-e2e-preview": "cypress run --e2e --config baseUrl=http://localhost:3000/",
     "test:dev": "start-server-and-test dev https://localhost:3000 cy:run-e2e-dev",
     "test:preview": "start-server-and-test preview https://localhost:3000 cy:run-e2e-preview",
+    "coverage:verify": "npx nyc report --check-coverage true --lines 20",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs  --ignore-path .gitignore --ignore-pattern 'docs/*'",
     "lint-fix": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore --ignore-pattern 'docs/*'"
   },
@@ -36,17 +37,17 @@
   "packageManager": "pnpm@10.24.0",
   "dependencies": {
     "@creativebulma/bulma-divider": "^1.1.0",
+    "@fortawesome/fontawesome-free": "^7.2.0",
     "@oruga-ui/oruga-next": "^0.5.10",
     "@oruga-ui/theme-bulma": "^0.2.11",
     "@vueuse/core": "^14.2.1",
     "@xmpp/client": "^0.14.0",
     "@xmpp/debug": "^0.14.0",
     "@xmpp/error": "^0.14.0",
-    "axios": "^1.13.5",
+    "axios": "^1.13.6",
     "bulma": "^0.9.4",
     "dayjs": "^1.11.19",
     "filesize": "^11.0.13",
-    "fork-awesome": "^1.2.0",
     "gemoji": "^8.1.0",
     "mime": "^4.1.0",
     "nanoid": "^5.1.6",
@@ -57,10 +58,11 @@
     "vue-router": "^5.0.3"
   },
   "devDependencies": {
-    "@cypress/code-coverage": "^4.0.0",
+    "@cypress/code-coverage": "^4.0.1",
     "@types/sanitize-html": "^2.16.0",
     "@vitejs/plugin-vue": "^6.0.4",
     "cypress": "^15.11.0",
+    "cypress-real-events": "^1.15.0",
     "eslint": "^8.57.1",
     "eslint-plugin-vue": "^9.33.0",
     "mock-socket": "^9.3.1",

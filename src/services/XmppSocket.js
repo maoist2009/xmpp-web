@@ -223,6 +223,11 @@ export default {
         // no body in message (probably a chat state)
         return
       }
+      if (message.type === 'groupchat') {
+        message.status = {
+          code: 'waiting',
+        }
+      }
       storeMessage(this, message.type, message)
     })
 
@@ -267,9 +272,11 @@ export default {
         if (presence.isSelf) {
           if (presence.type === 'unavailable') {
             this.context.$store.removeJoinedRoom(fullJid.bare)
+            this.context.$store.removeRoleInRoom(fullJid.bare)
           } else {
             this.context.$store.setJoinedRoom(fullJid.bare)
           }
+          this.context.$store.setRoleInRoom(fullJid.bare, presence.mucRole)
         }
         if (presence.type === 'unavailable') {
           // occupant left room
@@ -331,6 +338,9 @@ export default {
     this.client.on('messageSentError', (error) => {
       switch (error.type) {
         case 'cancel':
+          this.context.$store.setMessageStatus(error.messageId, 'error', error.message)
+          break
+        case 'auth':
           this.context.$store.setMessageStatus(error.messageId, 'error', error.message)
           break
       }
@@ -730,6 +740,10 @@ export default {
 
   async setRoomConfig (roomJid, form) {
     return this.client.configureRoom(roomJid, form)
+  },
+
+  async requestVoice (roomJid) {
+    return this.client.requestVoice(roomJid)
   },
 
   // Set nickname

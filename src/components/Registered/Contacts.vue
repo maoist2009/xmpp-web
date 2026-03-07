@@ -1,0 +1,113 @@
+<template>
+  <aside class="section pb-2" :class="isExpanded ? 'p-5' : 'py-5 px-1'">
+    <div class="menu" :class="!isExpanded ? 'pt-5' : ''">
+      <p v-show="isExpanded" class="menu-label"><i class="fa-solid fa-user mr-3 fa-lg" /><span>Contacts</span></p>
+      <ul id="contactsList" class="menu-list">
+        <li v-for="contact in contacts" :key="contact.jid">
+          <contact :jid="contact.jid" :is-room="false" :name="contact.name" :is-expanded="isExpanded" :presence="contact.presence" :status="contact.status" :unread-count="contact.unreadCount" />
+        </li>
+      </ul>
+      <hr v-show="groups.length > 0 && isExpanded">
+      <p v-if="groups.length > 0" v-show="isExpanded" class="menu-label"><i class="fa-solid fa-address-book mr-3 fa-lg" /><span>Groups</span></p>
+      <ul v-show="isExpanded" id="groupsList" class="menu-list">
+        <li v-for="group in groups" :key="group">
+          <group :group="group" />
+        </li>
+      </ul>
+      <hr>
+      <p v-show="isExpanded" class="menu-label"><i class="fa-solid fa-users mr-3 fa-lg" /><span>Rooms</span></p>
+      <ul id="roomsList" class="menu-list">
+        <li v-for="room in displayedRooms" :key="room.jid">
+          <contact :jid="room.jid" :is-room="true" :unread-count="room.unreadCount" :is-expanded="isExpanded" />
+        </li>
+        <li v-show="isExpanded">
+          <router-link active-class="is-active" :to="{ name: 'public muc' }" title="Join a room"><i class="fa-solid fa-compass fa-fw mr-3" />Public rooms</router-link>
+        </li>
+        <li v-show="isExpanded">
+          <form class="field has-addons" @submit.prevent="joinRoomByJid">
+            <div class="control is-flex-grow-1">
+              <input v-model="roomJid" class="input is-dark" type="text" :placeholder="roomPlaceholder" title="Enter a room jid for joining">
+            </div>
+            <div class="control" title="Join this room">
+              <button type="submit" class="button is-dark" :disabled="!isValidRoomJid">
+                <span class="icon">
+                  <i class="fa-solid fa-right-to-bracket" />
+                </span>
+              </button>
+            </div>
+          </form>
+        </li>
+        <li v-show="isExpanded">
+          <router-link :to="{ name: 'room creation' }" class="button is-fullwidth is-dark" title="Create a room">
+            <span class="icon">
+              <i class="fa-solid fa-square-plus" />
+            </span>
+            <span>Create a room</span>
+          </router-link>
+        </li>
+      </ul>
+    </div>
+  </aside>
+</template>
+
+<script>
+import { mapState } from 'pinia'
+import { useStore } from '@/store'
+import Contact from './Contact.vue'
+import Group from './Group.vue'
+
+export default {
+  name: 'Contacts',
+  components: {
+    Contact,
+    Group,
+  },
+  props: {
+    isExpanded: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  data () {
+    return {
+      roomJid: '',
+    }
+  },
+  computed: {
+    ...mapState(useStore, [
+      'contacts',
+      'knownRooms',
+      'groups',
+    ]),
+    displayedRooms () {
+      return this.knownRooms
+        .filter((room) => room.isBookmarked || this.$store.isJoined(room.jid))
+    },
+    roomPlaceholder () { return this.$xmpp.defaultMuc ? `room@${this.$xmpp.defaultMuc}` : `room@conference.${this.$xmpp.defaultDomain}` },
+    isValidRoomJid () { return this.$xmpp.defaultMuc ? this.roomJid.length > 2 : /\S+@\S+\S+/.test(this.roomJid) },
+  },
+  methods: {
+    joinRoomByJid () {
+      if (this.roomJid === '') {
+        return
+      }
+      if (!/\S+@\S+\S+/.test(this.roomJid)) {
+        if (!this.$xmpp.defaultMuc) {
+          return
+        }
+        this.roomJid = this.roomJid + '@' + this.$xmpp.defaultMuc
+      }
+      if (this.$route.name !== 'groupchat' || (!this.$route.params.jid || this.$route.params.jid !== this.roomJid)) {
+        this.$router.push({ name: 'groupchat', params: { jid: this.roomJid } })
+      }
+      this.roomJid = ''
+    },
+  },
+}
+</script>
+
+<style scoped>
+.menu-list a {
+  min-height: 40px;
+}
+</style>

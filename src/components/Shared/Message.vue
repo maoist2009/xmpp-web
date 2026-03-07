@@ -1,0 +1,163 @@
+<template>
+  <div class="is-flex">
+    <span class="message-text has-background-shade-1" :class="{ 'is-msg-moderated': statusCode === 'moderated' }" :title="messageDump">
+      <!-- eslint-disable-next-line vue/no-v-html -->
+      <span v-if="message.body" v-html="body" />
+      <message-link v-for="link in message.links" :key="link.url" :url="link.url" class="is-clickable" />
+      <div v-if="message.delay" class="content is-italic has-text-weight-light is-small">
+        <b v-if="displayNick" class="pr-1">{{ nick }}</b>
+        <time :datetime="$dayjs(message.delay).format()" :title="$dayjs(message.delay).format()">{{ $dayjs(message.delay).fromNow() }}</time>
+        <i v-if="statusCode === 'error'" class="fa-solid fa-xmark has-text-danger ml-2" :title="message.status.message" />
+        <i v-else-if="statusCode === 'moderated'" class="fa-solid fa-ban has-text-danger ml-2" :title="message.status.message" />
+        <i v-else-if="statusCode === 'waiting'" class="fa-solid fa-paper-plane fa-beat-fade has-text-primary ml-2" />
+      </div>
+    </span>
+  </div>
+</template>
+
+<script>
+import sanitizeHtml from 'sanitize-html'
+import MessageLink from './MessageLink.vue'
+import { copyToClipboard } from '../../utils/copyToClipboard.js'
+
+const copyButton = '<button class="button copy-button is-primary-ghost has-no-border is-shadowless" title="Copy to clipboard"><i class="fa-solid fa-copy"></i></button>'
+const copyToClipboardListener = async function() {
+  await copyToClipboard(this.nextSibling.innerHTML)
+  this.firstChild.classList.replace('fa-copy', 'fa-check')
+  setTimeout(() => this.firstChild.classList.replace('fa-check', 'fa-copy'), 2000)
+}
+
+export default {
+  name: 'Message',
+  components: {
+    MessageLink,
+  },
+  inject: [
+    'message',
+  ],
+  props: {
+    displayNick: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  computed: {
+    nick () {
+      return this.message.from.resource
+    },
+    body () {
+      if (window.config.isStylingDisabled) {
+        return sanitizeHtml(this.message.body, {
+          allowedTags: [],
+          disallowedTagsMode: escape,
+        })
+      }
+
+      let codeBlockStartLine = null
+      let codeBlockEndLine = null
+      return sanitizeHtml(this.message.body, {
+        allowedTags: [],
+        disallowedTagsMode: escape,
+      })
+        .split(/\r?\n/)
+        .map((line, index, lines) => {
+          if (codeBlockEndLine !== null) {
+            // continue current code block
+            if (index === codeBlockStartLine) {
+              if (index === codeBlockEndLine - 1) {
+                // start and end code block
+                return `<pre>${copyButton}<code>${line}</code></pre>`
+              }
+              // start code block
+              return `<pre>${copyButton}<code>${line}`
+            }
+            if (index === codeBlockEndLine - 1) {
+              // end code block
+              return `${line}</code></pre>`
+            }
+            if (index === codeBlockEndLine) {
+              // clear code block vars
+              codeBlockStartLine = null
+              codeBlockEndLine = null
+              return null
+            }
+            // inside code block
+            return line
+          }
+
+          if (/^```/.test(line)) {
+            // code block, try to found the end
+            const relativeBlockLineEnd = lines
+              .slice(index + 1)
+              .findIndex((testedLine) => /```/.test(testedLine))
+            if (relativeBlockLineEnd !== -1) {
+              // code block is valid, set vars for handling relativeBlockLineEnd-th next lines
+              codeBlockStartLine = index + 1
+              codeBlockEndLine = index + relativeBlockLineEnd + 1
+              return null
+            }
+          }
+
+          // handle inline tags
+          // inline code
+          const re = /([^`]*)`([^`]*)`([^`]*)/g
+          let parts
+          const codes = {}
+          let lineTemp = ''
+          while ((parts = re.exec(line)) !== null) {
+            codes[parts.index] = parts[2]
+            lineTemp += `${parts[1]}<code ${parts.index} />${parts[3]}`
+          }
+          if (lineTemp !== '') {
+            line = lineTemp
+          }
+          // link
+          const links = {}
+          line.match(/((?:https?|mailto):\/\/[a-z0-9/:%_+.,#?!@&=-]+)/gi)?.forEach((link, index) => {
+            links[index] = link
+            line = line.replaceAll(link, `<a href="${index}">${index}</a>`)
+          })
+          // bold (between *)
+          line = line.replace(/([^*]*)\*([^*]*)\*([^*]*)/g, '$1<strong>$2</strong>$3')
+          // italic (between _)
+          line = line.replace(/([^_]*)_([^_]*)_([^_]*)/g, '$1<i>$2</i>$3')
+          // striked (between ~)
+          line = line.replace(/([^~]*)~([^~]*)~([^~]*)/g, '$1<strike>$2</strike>$3')
+          // finally bind inline code tags and links (to avoid styling)
+          for (const code in codes) {
+            line = line.replace(new RegExp(`(.*)<code ${code} />(.*)`, 'g'), `$1<code>${codes[code]}</code>$2`)
+          }
+          for (const link in links) {
+            line = line.replace(`<a href="${link}">${link}</a>`, `<a href="${links[link]}" target="_blank" rel="noreferrer">${links[link]}</a>`)
+          }
+          return line
+        })
+        .filter((line) => line !== null)
+        .join('\n')
+    },
+    statusCode () {
+      return this.message.status ? this.message.status.code : null
+    },
+    messageDump () {
+      return import.meta.env.DEV ? JSON.stringify(this.message, null, 2) : null
+    },
+  },
+  watch: {
+    body: {
+      handler () {
+        this.$nextTick(() => {
+          document.querySelectorAll('.message-text button.copy-button').forEach(el => {
+            el.addEventListener('click', copyToClipboardListener)
+          })
+        })
+      },
+      immediate: true,
+    },
+  },
+  beforeUnmount () {
+    document.querySelectorAll('.message-text button.copy-button').forEach(el => {
+      el.removeEventListener('click', copyToClipboardListener)
+    })
+  },
+}
+</script>
